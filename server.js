@@ -10,6 +10,10 @@ app.use(cors()); // ENABLES CORS POLICY ( ALLOWS FRONTEND TO ACCESS BACKEND )
 
 
 // Import Routes
+const productRoutes = require('./routes/productRoutes')
+
+// Use Routes
+app.use('/api/products', productRoutes);
 
 // ROUTES
 app.get('/', (req, res) => {

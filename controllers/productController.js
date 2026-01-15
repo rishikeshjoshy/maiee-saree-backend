@@ -22,6 +22,8 @@ exports.getAllProducts = async (req , res) => {
         )
       `);
 
+      console.log("Products fetched successfully.");  // Debug Log in Terminal
+
       if(error){
         throw error;
       }
