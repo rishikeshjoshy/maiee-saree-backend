@@ -63,3 +63,131 @@ exports.placeOrder = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// @desc    GET ALL orders (Admin only)
+// @route   GET /api/orders/admin
+
+exports.getAllOrders = async (req , res) => {
+    try{
+        const { data , error } = await supabase
+        .from('orders')
+        .select(`
+        *,
+        order_items (
+          product_name,
+          color_name,
+          quantity,
+          price_at_purchase
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+      if(error) throw error;
+
+      res.status(200).json({ success : true , count : data.length , data : data});
+
+    } catch (error) {
+        res.status(500).json({ success : false , error : error.message });
+    }
+};
+
+// @desc Update Order Status
+// @route PUT /api/orders/:id/status
+exports.updateOrderStatus = async ( req , res ) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    console.log(`---- DEBUG STATUS UPDATE ----`);
+    console.log(`Target ORder ID: ${id}`);
+    console.log(`New Status : ${status}`);
+    console.log(`-----------------------------`)
+
+
+    // TYPE B CODE WITH DETAILED ERROR HANDLING
+    try{
+        // Validation 
+        if(!status){
+            throw new Error("Missing 'status' in Request Body");
+        }
+
+        // Perform Update
+        const{ data , error } = await supabase
+        .from('orders')
+        .update({ payment_status : status })
+        .eq('id', id )
+        .select()
+        .single();
+
+        if(error) {
+            console.error("Supabase Error: ", error);
+            throw error;
+        }
+
+        console.log('Update Success: ', data);
+
+        res.status(200).json({ success:true , message : `Order updated as ${status}`, data : data });
+        
+    } catch (error) {
+        console.error("Server Crash ", error.message);
+        
+        // Handle specific "NOT FOUND" error
+        if(error.code == 'PGRST116'){
+            return res.status(404).json({success : false , error : "Order ID not Found"});
+        }
+
+        res.status(500).json({ success : false , error : error.message });
+    }
+
+    // TYPE A CODE WITHOUT DETAILED ERROR HANDLING
+    // try {
+    //     const { data , error } = await supabase
+    //     .from('orders')
+    //     .update({ payment_status : status })
+    //     .eq('id' , id)
+    //     .select()
+    //     .single();
+
+    //     if(error) throw error;
+
+    //     res.status(200).json({ success : true ,message : `Order marked as ${status}`,  data : data }); 
+    // } catch {
+    //     res.status(500).json({ success : false , error : error.message });
+    // }
+};
+
+
+// @desc    Get Dashboard Stats (Revenue , Counts)
+// @route   GET /api/orders/admin/stats
+
+exports.getOrderStats = async ( req , res ) => {
+    try{
+
+        // Fetching only the colums as we need to calculate stats
+        const { data , error } = await supabase
+        .from('orders')
+        .select('total_amount , payment_status');
+
+        if(error) throw error;
+
+        // Calculate in JS
+        const totalOrders = data.length;
+
+        // Sum up all the revenue (using reduce function)
+        const totalRevenue = data.reduce(( acc, order) => acc + (parseFloat(order.total_amount) || 0), 0);
+
+        // Count orders by status
+        const pendingOrders = data.filter( o => o.payment_status === 'Pending').length;
+        const shippingOrders = data.filter(o => o.payment_status === 'Shipping').length;
+
+        res.status(200).json({ success : true , stats : {
+            total_orders : totalOrders,
+            total_revenue : totalRevenue,
+            pending_orders : pendingOrders,
+            shipping_orders : shippingOrders 
+        }
+    });
+
+    } catch(error) {
+        res.status(500).json({ success : false , error : error.message });
+    }
+};
