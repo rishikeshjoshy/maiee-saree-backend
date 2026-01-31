@@ -1,9 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { getAllProducts } = require('../controllers/productController');
+
+const productController = require('../controllers/productController');
+const upload = require('../config/multer');
+
+console.log("--- DEBUG ROUTES ---");
+console.log("Controller Loaded?", !!productController);
+console.log("Has getAllProducts?", !!productController.getAllProducts);
+console.log("Has createProduct?", !!productController.createProduct);
 
 // When user hits '/', run getAllProducts function
-router.get('/',getAllProducts);
+router.get('/',productController.getAllProducts);
+
+// POST new product (With image)
+console.log("Multer Check: ", upload);
+router.post('/', upload.single('image'), productController.createProduct);
 
 module.exports = router;
 

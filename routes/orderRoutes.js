@@ -6,12 +6,14 @@ const { getAllOrders} = require('../controllers/ordersController');
 const { updateOrderStatus } = require('../controllers/ordersController');
 const { getOrderStats } = require('../controllers/ordersController');
 
-// PUBLIC
+// POST ACTIONS FOR PUBLIC
 router.post('/', placeOrder);
 
-// ADMIN Routes
+// GET ACTIONS FOR ADMIN
 router.get('/admin',getAllOrders);
-router.put('/:id/status', updateOrderStatus);
 router.get('/stats' , getOrderStats);
+
+// PUT ACTIONS FOR ADMIN
+router.put('/:id/status', updateOrderStatus);
 
 module.exports = router;
