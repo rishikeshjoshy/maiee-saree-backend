@@ -84,7 +84,25 @@ exports.getAllOrders = async (req , res) => {
 
       if(error) throw error;
 
-      res.status(200).json({ success : true , count : data.length , data : data});
+      // Transform data to match frontend 
+      const transformedData = data.map(order => ({
+        ...order,
+        customer_details: {
+          name: order.customer_name,
+          email: order.customer_email,
+          phone: order.customer_phone
+        },
+        status: order.payment_status?.toLowerCase() || 'pending',
+        items: order.order_items?.map(item => ({
+          product_id: item.product_id,
+          name: item.product_name,
+          color: item.color_name,
+          quantity: item.quantity,
+          price: item.price_at_purchase
+        })) || []
+      }));
+
+      res.status(200).json({ success : true , count : transformedData.length , data : transformedData});
 
     } catch (error) {
         res.status(500).json({ success : false , error : error.message });
@@ -179,11 +197,15 @@ exports.getOrderStats = async ( req , res ) => {
         const pendingOrders = data.filter( o => o.payment_status === 'Pending').length;
         const shippingOrders = data.filter(o => o.payment_status === 'Shipping').length;
 
-        res.status(200).json({ success : true , stats : {
+        // Count completed orders
+        const completedOrders = data.filter(o => o.payment_status === 'Delivered').length;
+
+        res.status(200).json({ success : true , data : {
             total_orders : totalOrders,
             total_revenue : totalRevenue,
             pending_orders : pendingOrders,
-            shipping_orders : shippingOrders 
+            shipping_orders : shippingOrders,
+            completed_orders : completedOrders 
         }
     });
 
