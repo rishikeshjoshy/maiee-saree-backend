@@ -1,30 +1,41 @@
 const supabase = require('../config/supabase');
 
-// @desc    Get All Products (With Variants)
+// @desc    Get All Products (With Variants if available)
 // @route   GET /api/products
 exports.getAllProducts = async (req, res) => {
   try {
-    const { data, error } = await supabase
+    // Fetch products first
+    const { data: products, error: productsError } = await supabase
       .from('products')
-      .select(`
-        *,
-        product_variants (
-          id,
-          color_name,
-          color_hex,
-          stock_quantity,
-          images
-        )
-      `);
+      .select('*');
 
-    if (error) throw error;
+    if (productsError) throw productsError;
 
-    res.status(200).json({ success: true, count: data.length, data: data });
+    // Try to fetch variants (table may not exist)
+    let variants = [];
+    const { data: variantsData, error: variantsError } = await supabase
+      .from('product_variants')
+      .select('id, product_id, color_name, color_hex, stock_quantity, images');
+    
+    if (!variantsError && variantsData) {
+      variants = variantsData;
+    } else {
+      console.log('product_variants table not found or empty, continuing without variants');
+    }
+
+    // Manually join products with their variants (or empty array if no variants)
+    const productsWithVariants = products.map(product => ({
+      ...product,
+      product_variants: variants.filter(v => v.product_id === product.id)
+    }));
+
+    res.status(200).json({ success: true, count: productsWithVariants.length, data: productsWithVariants });
 
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
 
 // @desc    Create Product with Image
 // @route   POST /api/products
