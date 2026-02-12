@@ -1,6 +1,6 @@
 const supabase = require('../config/supabase');
 
-// @desc    Get All Products (With Variants)
+// @desc    Get All Products with Variants
 // @route   GET /api/products
 exports.getAllProducts = async (req, res) => {
   try {
@@ -9,13 +9,13 @@ exports.getAllProducts = async (req, res) => {
       .select(`
         *,
         product_variants (
-          id,
           color_name,
-          color_hex,
+          color_value,
           stock_quantity,
           images
         )
-      `);
+      `)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
