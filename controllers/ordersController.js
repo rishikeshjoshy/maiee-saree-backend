@@ -113,7 +113,7 @@ exports.updateOrderStatus = async ( req , res ) => {
         // Perform Update
         const{ data , error } = await supabase
         .from('orders')
-        .update({ payment_status : status })
+        .update({ status : status })
         .eq('id', id )
         .select()
         .single();
@@ -128,8 +128,7 @@ exports.updateOrderStatus = async ( req , res ) => {
         res.status(200).json({ 
           success : true , 
           message : `Order updated as ${status}`, 
-          data : data 
-        });
+          data : data });
         
     } catch (error) {
         console.error("Server Crash ", error.message);
@@ -163,53 +162,35 @@ exports.updateOrderStatus = async ( req , res ) => {
 // @desc    Get Dashboard Stats (Revenue , Counts)
 // @route   GET /api/orders/admin/stats
 
-// @desc Update Order Status (Fulfillment Status)
-// @route PUT /api/orders/:id/status
-exports.updateOrderStatus = async (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body; // e.g., "Shipped", "Packing"
+exports.getOrderStats = async ( req , res ) => {
+    try{
 
-    console.log(`---- DEBUG STATUS UPDATE ----`);
-    console.log(`Target Order ID: ${id}`);
-    console.log(`New Status: ${status}`);
-    console.log(`-----------------------------`);
+        // Fetching only the colums as we need to calculate stats
+        const { data , error } = await supabase
+        .from('orders')
+        .select('total_amount , payment_status');
 
-    try {
-        // Validation 
-        if (!status) {
-            throw new Error("Missing 'status' in Request Body");
+        if(error) throw error;
+
+        // Calculate in JS
+        const totalOrders = data.length;
+
+        // Sum up all the revenue (using reduce function)
+        const totalRevenue = data.reduce(( acc, order) => acc + (parseFloat(order.total_amount) || 0), 0);
+
+        // Count orders by status
+        const pendingOrders = data.filter( o => o.payment_status === 'Pending').length;
+        const shippingOrders = data.filter(o => o.payment_status === 'Shipping').length;
+
+        res.status(200).json({ success : true , stats : {
+            total_orders : totalOrders,
+            total_revenue : totalRevenue,
+            pending_orders : pendingOrders,
+            shipping_orders : shippingOrders 
         }
+    });
 
-        // Perform Update
-        // FIX: We update 'status' (Workflow), NOT 'payment_status' (Money)
-        const { data, error } = await supabase
-            .from('orders')
-            .update({ status: status }) // <--- CHANGED THIS LINE
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Supabase Error: ", error);
-            throw error;
-        }
-
-        console.log('Update Success: ', data);
-
-        res.status(200).json({ 
-            success: true, 
-            message: `Order updated as ${status}`, 
-            data: data 
-        });
-
-    } catch (error) {
-        console.error("Server Crash ", error.message);
-
-        // Handle specific "NOT FOUND" error
-        if (error.code == 'PGRST116') {
-            return res.status(404).json({ success: false, error: "Order ID not Found" });
-        }
-
-        res.status(500).json({ success: false, error: error.message });
+    } catch(error) {
+        res.status(500).json({ success : false , error : error.message });
     }
 };
