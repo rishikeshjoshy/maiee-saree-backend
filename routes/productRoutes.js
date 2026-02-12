@@ -14,7 +14,7 @@ router.get('/',productController.getAllProducts);
 
 // POST new product (With image)
 console.log("Multer Check: ", upload);
-router.post('/', upload.array('image' , 10), productController.createProduct);
+router.post('/', upload.array('image' , 5), productController.createProduct);
 
 module.exports = router;
 
