@@ -162,3 +162,27 @@ exports.updateProduct = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// @desc    Delete Product
+// @route   DELETE /api/products/:id
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Delete the product. 
+    // Supabase will automatically delete the linked variants due to Cascade setup.
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    console.log(`Product ${id} deleted successfully.`);
+    res.status(200).json({ success: true, message: "Product deleted successfully" });
+
+  } catch (error) {
+    console.error("Delete Error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

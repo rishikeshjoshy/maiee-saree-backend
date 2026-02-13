@@ -15,6 +15,9 @@ router.get('/',productController.getAllProducts);
 // Quick Edit for products in CMS
 router.put('/:id', productController.updateProduct);
 
+// Delete Product in CMS (Admin only)
+router.delete('/:id', productController.deleteProduct);        
+
 // POST new product (With image)
 console.log("Multer Check: ", upload);
 router.post('/', upload.array('image' , 5), productController.createProduct);
