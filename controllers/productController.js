@@ -124,3 +124,41 @@ exports.createProduct = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// @desc    Update Product Details & Stock
+// @route   PUT /api/products/:id
+exports.updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, base_price, category, stock } = req.body;
+
+    // 1. Update Main Product Table
+    const { error: productError } = await supabase
+      .from('products')
+      .update({
+        title: title,
+        description: description,
+        base_price: parseFloat(base_price),
+        category: category
+      })
+      .eq('id', id);
+
+    if (productError) throw productError;
+
+    // 2. Update Stock in Variants Table
+    if (stock !== undefined) {
+      const { error: variantError } = await supabase
+        .from('product_variants')
+        .update({ stock_quantity: parseInt(stock) })
+        .eq('product_id', id);
+
+      if (variantError) throw variantError;
+    }
+
+    res.status(200).json({ success: true, message: "Product updated successfully" });
+
+  } catch (error) {
+    console.error("Update Error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

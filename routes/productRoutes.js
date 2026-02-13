@@ -12,6 +12,9 @@ console.log("Has createProduct?", !!productController.createProduct);
 // When user hits '/', run getAllProducts function
 router.get('/',productController.getAllProducts);
 
+// Quick Edit for products in CMS
+router.put('/:id', productController.updateProduct);
+
 // POST new product (With image)
 console.log("Multer Check: ", upload);
 router.post('/', upload.array('image' , 5), productController.createProduct);
