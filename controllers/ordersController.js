@@ -30,6 +30,7 @@ exports.placeOrder = async (req, res) => {
         customer_phone: cPhone, // Using the extracted variable
         shipping_address: shipping_address,
         total_amount: total_amount,
+        status: 'Pending', // Ensuring workflow status is here
         payment_status: 'Pending',
         payment_method: 'COD' 
       }])
@@ -54,6 +55,36 @@ exports.placeOrder = async (req, res) => {
 
     if (itemsError) throw itemsError;
 
+    // ---------------------------------------------------------
+    // 4. DEDUCT STOCK FROM INVENTORY (THE NEW SYNC LOGIC)
+    // ---------------------------------------------------------
+    console.log("Order saved. Deducting stock...");
+    
+    for (const item of items) {
+      // Step A: Fetch current stock for this specific product
+      const { data: variant, error: fetchError } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('product_id', item.product_id)
+        .single();
+
+      if (!fetchError && variant) {
+        // Step B: Calculate new stock (prevent it from going below 0)
+        const newStock = Math.max(0, variant.stock_quantity - item.quantity);
+        
+        // Step C: Update the database
+        await supabase
+          .from('product_variants')
+          .update({ stock_quantity: newStock })
+          .eq('product_id', item.product_id);
+          
+        console.log(`Product ${item.product_id} stock successfully reduced to ${newStock}`);
+      } else {
+        console.error(`Failed to fetch stock for Product ${item.product_id}:`, fetchError);
+      }
+    }
+    // ---------------------------------------------------------
+
     // Success
     console.log("Order Success! ID:", order.id);
     res.status(201).json({ success: true, order_id: order.id });
@@ -66,7 +97,6 @@ exports.placeOrder = async (req, res) => {
 
 // @desc    GET ALL orders (Admin only)
 // @route   GET /api/orders/admin
-
 exports.getAllOrders = async (req , res) => {
     try{
         const { data , error } = await supabase
@@ -98,12 +128,10 @@ exports.updateOrderStatus = async ( req , res ) => {
     const { status } = req.body;
 
     console.log(`---- DEBUG STATUS UPDATE ----`);
-    console.log(`Target ORder ID: ${id}`);
+    console.log(`Target Order ID: ${id}`);
     console.log(`New Status : ${status}`);
     console.log(`-----------------------------`)
 
-
-    // TYPE B CODE WITH DETAILED ERROR HANDLING
     try{
         // Validation 
         if(!status){
@@ -113,7 +141,7 @@ exports.updateOrderStatus = async ( req , res ) => {
         // Perform Update
         const{ data , error } = await supabase
         .from('orders')
-        .update({ status : status })
+        .update({ status : status }) // Keeping this mapped to 'status' as we fixed earlier
         .eq('id', id )
         .select()
         .single();
@@ -140,35 +168,16 @@ exports.updateOrderStatus = async ( req , res ) => {
 
         res.status(500).json({ success : false , error : error.message });
     }
-
-    // TYPE A CODE WITHOUT DETAILED ERROR HANDLING
-    // try {
-    //     const { data , error } = await supabase
-    //     .from('orders')
-    //     .update({ payment_status : status })
-    //     .eq('id' , id)
-    //     .select()
-    //     .single();
-
-    //     if(error) throw error;
-
-    //     res.status(200).json({ success : true ,message : `Order marked as ${status}`,  data : data }); 
-    // } catch {
-    //     res.status(500).json({ success : false , error : error.message });
-    // }
 };
-
 
 // @desc    Get Dashboard Stats (Revenue , Counts)
 // @route   GET /api/orders/admin/stats
-
 exports.getOrderStats = async ( req , res ) => {
     try{
-
-        // Fetching only the colums as we need to calculate stats
+        // Fetching only the columns as we need to calculate stats
         const { data , error } = await supabase
         .from('orders')
-        .select('total_amount , payment_status');
+        .select('total_amount , payment_status, status'); // Added status here to ensure accurate counting
 
         if(error) throw error;
 
@@ -178,9 +187,9 @@ exports.getOrderStats = async ( req , res ) => {
         // Sum up all the revenue (using reduce function)
         const totalRevenue = data.reduce(( acc, order) => acc + (parseFloat(order.total_amount) || 0), 0);
 
-        // Count orders by status
-        const pendingOrders = data.filter( o => o.payment_status === 'Pending').length;
-        const shippingOrders = data.filter(o => o.payment_status === 'Shipping').length;
+        // Count orders by status (Using workflow status like we fixed before)
+        const pendingOrders = data.filter( o => o.status === 'Pending' || o.payment_status === 'Pending').length;
+        const shippingOrders = data.filter(o => o.status === 'Shipping' || o.status === 'Shipped').length;
 
         res.status(200).json({ success : true , stats : {
             total_orders : totalOrders,
