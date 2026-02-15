@@ -1,13 +1,30 @@
 const supabase = require('../config/supabase');
 
+<<<<<<< HEAD
 // @desc    Get All Products (With Variants if available)
+=======
+// @desc    Get All Products with Variants
+>>>>>>> add696836a89daee947de31e777a750d6d45c0fa
 // @route   GET /api/products
 exports.getAllProducts = async (req, res) => {
   try {
     // Fetch products first
     const { data: products, error: productsError } = await supabase
       .from('products')
+<<<<<<< HEAD
       .select('*');
+=======
+      .select(`
+        *,
+        product_variants (
+          color_name,
+          color_value,
+          stock_quantity,
+          images
+        )
+      `)
+      .order('created_at', { ascending: false });
+>>>>>>> add696836a89daee947de31e777a750d6d45c0fa
 
     if (productsError) throw productsError;
 
@@ -39,87 +56,161 @@ exports.getAllProducts = async (req, res) => {
 
 // @desc    Create Product with Image
 // @route   POST /api/products
+// @desc    Create a new Product with 1 Variant (Color + Images)
+// @route   POST /api/products
 exports.createProduct = async (req, res) => {
   try {
-    // 1. Log Everything
-    console.log("---------------------------------");
-    console.log("PROCESSING NEW PRODUCT...");
-    console.log("Text Data:", req.body);
-    console.log("File Data:", req.file ? "File Attached (Size: " + req.file.size + ")" : "NO FILE DETECTED");
+    console.log("--- STARTED PRODUCT UPLOAD ---");
+    
+    // 1. EXTRACT DATA (safely parse numbers)
+    const { 
+      title, 
+      description, 
+      base_price, 
+      category, 
+      stock, 
+      color_name, 
+      color_hex 
+    } = req.body;
 
-    // 2. Extract Variables
-    const { title, description, base_price, category, color_name, color_hex, stock } = req.body;
-    const imageFile = req.file;
+    const files = req.files; // Multer gives us this
 
-    // 3. Strict Validation
-    if (!imageFile) {
-        return res.status(400).json({ success: false, message: "No image file received by Controller" });
+    console.log(`Title: ${title}, Price: ${base_price}, Images: ${files?.length}`);
+
+    // 2. VALIDATION
+    if (!title || !base_price || !files || files.length === 0) {
+      return res.status(400).json({ success: false, error: "Missing required fields or images" });
     }
-    if (!title) {
-        return res.status(400).json({ success: false, message: "Missing product title" });
-    }
 
-    // 4. Upload to Supabase Storage
-    const fileName = `${Date.now()}-${imageFile.originalname.replace(/\s/g, '_')}`;
+    // 3. UPLOAD IMAGES TO SUPABASE STORAGE
+    const imageUrls = [];
+    
+    for (const file of files) {
+      // Create a unique filename: timestamp-originalname
+      const fileName = `${Date.now()}-${file.originalname.replace(/\s/g, '_')}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('product-images') // <--- MAKE SURE THIS BUCKET EXISTS IN SUPABASE
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype
+        });
 
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('product-images')
-      .upload(fileName, imageFile.buffer, {
-        contentType: imageFile.mimetype,
-        upsert: false
-      });
-
-    if (uploadError) {
-        console.error("Supabase Upload Error:", uploadError);
+      if (uploadError) {
+        console.error("Storage Upload Error:", uploadError);
         throw uploadError;
+      }
+
+      // Get Public URL
+      const { data: urlData } = supabase
+        .storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+        
+      imageUrls.push(urlData.publicUrl);
     }
 
-    // 5. Get Public URL
-    const { data: urlData } = supabase
-      .storage
-      .from('product-images')
-      .getPublicUrl(fileName);
+    console.log("Images Uploaded:", imageUrls);
 
-    const publicImageUrl = urlData.publicUrl;
-
-    // 6. Database Insert (Product)
+    // 4. INSERT PRODUCT (Header)
     const { data: product, error: productError } = await supabase
       .from('products')
       .insert([{
-        title,
-        description,
-        base_price,
-        category
+        title: title,
+        description: description || '',
+        base_price: parseFloat(base_price), // Ensure Number
+        category: category || 'General'
       }])
       .select()
       .single();
 
     if (productError) throw productError;
 
-    // 7. Database Insert (Variant)
+    // 5. INSERT VARIANT (The detailed stock/images)
     const { error: variantError } = await supabase
       .from('product_variants')
       .insert([{
         product_id: product.id,
-        color_name: color_name,
-        color_hex: color_hex,
-        stock_quantity: stock,
-        images: [publicImageUrl]
+        color_name: color_name || 'Standard',
+        color_value: color_hex || '#000000',
+        stock_quantity: parseInt(stock) || 0, // Ensure Number
+        images: imageUrls // Save array of URLs
       }]);
 
     if (variantError) throw variantError;
 
-    // Success
-    res.status(201).json({
-      success: true,
-      message: "Product Created Successfully",
-      product_id: product.id,
-      image_url: publicImageUrl
+    console.log("Product Created Successfully ID:", product.id);
+
+    res.status(201).json({ 
+      success: true, 
+      message: "Product uploaded successfully",
+      data: product 
     });
 
   } catch (error) {
-    console.error("CRITICAL ERROR:", error.message);
+    console.error("Create Product Crash:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// @desc    Update Product Details & Stock
+// @route   PUT /api/products/:id
+exports.updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, base_price, category, stock } = req.body;
+
+    // 1. Update Main Product Table
+    const { error: productError } = await supabase
+      .from('products')
+      .update({
+        title: title,
+        description: description,
+        base_price: parseFloat(base_price),
+        category: category
+      })
+      .eq('id', id);
+
+    if (productError) throw productError;
+
+    // 2. Update Stock in Variants Table
+    if (stock !== undefined) {
+      const { error: variantError } = await supabase
+        .from('product_variants')
+        .update({ stock_quantity: parseInt(stock) })
+        .eq('product_id', id);
+
+      if (variantError) throw variantError;
+    }
+
+    res.status(200).json({ success: true, message: "Product updated successfully" });
+
+  } catch (error) {
+    console.error("Update Error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// @desc    Delete Product
+// @route   DELETE /api/products/:id
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Delete the product. 
+    // Supabase will automatically delete the linked variants due to Cascade setup.
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    console.log(`Product ${id} deleted successfully.`);
+    res.status(200).json({ success: true, message: "Product deleted successfully" });
+
+  } catch (error) {
+    console.error("Delete Error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 };

@@ -1,28 +1,29 @@
 const multer = require('multer');
 
-// Configure Storage
-// Using memoryStorage to store the files in RAM for few secs till it reaches supabase
-
+// Configure Multer Storage (Memory Storage is best for Supabase upload)
 const storage = multer.memoryStorage();
 
-// File Filter to accept only images (ONLY JPEG & PNG)
+// Configure File Filter (The Gatekeeper)
+const fileFilter = (req, file, cb) => {
+  // Accepted MIME types
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-const fileFilter = ( req , file , cb ) => {
-
-    if (file.mimetype.startsWith('image/')){
-        cb(null , true);
-    } else {
-        cb(new Error('Only JPEG & PNG image files are allowed!'), false);
-    }
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true); // Accept file
+  } else {
+    // Reject file with helpful error
+    cb(new Error(`Invalid file type: ${file.mimetype}. Only JPEG, PNG, and WebP are allowed.`), false);
+  }
 };
 
-// Initialize Multer 
-const upload = multer({
-    storage : storage,
-    limits : {
-        fileSize : 7 * 1024 * 1024 // 5MB
-    },
-    fileFilter : fileFilter
+// Initialize Upload Middleware
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 7 * 1024 * 1024, // 7MB limit per file
+    files: 5 // Max 5 files
+  }
 });
 
 module.exports = upload;
