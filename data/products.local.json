@@ -1,0 +1,29 @@
+{
+  "products": [
+    {
+      "id": "local-1771343654468-x9lpx",
+      "title": "Blue Kanjivaram saree",
+      "name": "Blue Kanjivaram saree",
+      "slug": "blue-kanjivaram-saree",
+      "description": "saree - 1 desc",
+      "base_price": 9999,
+      "category": "Kanjivaram sarees",
+      "collection_slug": "",
+      "created_at": "2026-02-17T15:54:14.469Z",
+      "updated_at": "2026-02-17T15:58:50.414Z",
+      "product_variants": [
+        {
+          "id": "local-1771343654468-x9lpx-variant-1",
+          "product_id": "local-1771343654468-x9lpx",
+          "color_name": "Royal Blue",
+          "color_hex": "#800000",
+          "color_value": "#800000",
+          "stock_quantity": 9,
+          "images": [
+            "http://localhost:5001/uploads/1771343654459-b7m0q5.jpg"
+          ]
+        }
+      ]
+    }
+  ]
+}

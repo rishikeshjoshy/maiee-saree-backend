@@ -1,0 +1,46 @@
+{
+  "orders": [
+    {
+      "id": "local-order-1771343930411-na5bp",
+      "orderNumber": "LOCAL-930411",
+      "customer_name": "gayatri",
+      "customer_email": "gayatriv1717@gmail.com",
+      "customer_phone": "7506190232",
+      "shipping_address": "nvm, nvm, nvm - 410206",
+      "total_amount": 9999,
+      "status": "Pending",
+      "payment_status": "Pending",
+      "created_at": "2026-02-17T15:58:50.411Z",
+      "order_items": [
+        {
+          "product_id": "local-1771343654468-x9lpx",
+          "product_name": "Blue Kanjivaram saree",
+          "color_name": "Royal Blue",
+          "quantity": 1,
+          "price_at_purchase": 9999
+        }
+      ]
+    },
+    {
+      "id": "local-order-1771343910297-8czrx",
+      "orderNumber": "LOCAL-910297",
+      "customer_name": "Test User",
+      "customer_email": "test@example.com",
+      "customer_phone": "9999999999",
+      "shipping_address": "Test Street, City, State - 560001",
+      "total_amount": 1999,
+      "status": "Pending",
+      "payment_status": "Pending",
+      "created_at": "2026-02-17T15:58:30.297Z",
+      "order_items": [
+        {
+          "product_id": "local-sample-1",
+          "product_name": "Sample Saree",
+          "color_name": "Red",
+          "quantity": 1,
+          "price_at_purchase": 1999
+        }
+      ]
+    }
+  ]
+}

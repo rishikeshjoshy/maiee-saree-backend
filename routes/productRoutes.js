@@ -15,6 +15,9 @@ router.get('/',productController.getAllProducts);
 // Quick Edit for products in CMS
 router.put('/:id', productController.updateProduct);
 
+// Stock-only update in CMS
+router.patch('/:id/stock', productController.updateProductStock);
+
 // Delete Product in CMS (Admin only)
 router.delete('/:id', productController.deleteProduct);        
 
