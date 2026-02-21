@@ -169,17 +169,48 @@ exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Delete the product. 
+    // 1 Delete the product. 
     // Supabase will automatically delete the linked variants due to Cascade setup.
     const { error } = await supabase
       .from('products')
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (fetchError) throw fetchError;
 
-    console.log(`Product ${id} deleted successfully.`);
-    res.status(200).json({ success: true, message: "Product deleted successfully" });
+    // 2 Extract Filenames and Delete from Storage
+    let fileNames =[];
+    if(variants && variants.length > 0){
+      variants.forEach(variant => {
+        if(variant.images && variant.images.length > 0){
+          variant.images.forEach(url => {
+            const fileName = url.split('/').pop();
+            if (fileName) fileNames.push(fileName);
+          });
+        }
+      });
+    }
+
+    if (fileNames.length > 0) {
+      console.log('Deleting ${fileNames.length} images from storage..');
+      const {error : storageError} = await supabase
+      .storage
+      .from('product-images')
+      .remove(fileNames);
+
+      if(storageError) console.error("Storage Clean-up Error:", storageError);
+    }
+
+    // 3 Delete the Product from the DB
+    const {error : dbError } = await supabase
+    .from('products')
+    .delete()
+    .eq('id' , id);
+
+    if(dbError) throw dbError;
+    
+    console.log(`Product ${id} completely wiped from DB & Storage.`);
+    res.status(200).json({ success: true, message: "Product & Images deleted successfully from DB & Storage" });
 
   } catch (error) {
     console.error("Delete Error:", error.message);
